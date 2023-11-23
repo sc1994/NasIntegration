@@ -1,0 +1,112 @@
+﻿version: "3.4"
+
+services:
+
+  # 如果你需要DDNS 可以取消注释，且添加 DDNS配置
+  # ddns:
+  #   image: ${ddns_IMAGETAG}
+  #   container_name: ddns
+  #   restart: always
+  #   network_mode: host
+  #   environment:
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime
+  #     - ${CONFIGS}/ddns/config.json:/config.json
+  #   healthcheck:
+  #     test: [ "CMD-SHELL", "./ddns" ]
+  #     interval: 5s
+  #     timeout: 30s
+  #     retries: 3
+
+  # clash推荐安装，不然很多磁力站点，以及字幕或者影视剧数据库无法访问
+  clash-ui:
+    image: ${clash_ui_IMAGETAG}
+    container_name: clash-ui
+    restart: always
+    ports:
+      - ${clash_ui_PORT}:9091
+    environment:
+      - TZ=${TZ}
+
+  clash:
+    image: ${clash_IMAGETAG}
+    container_name: clash
+    restart: always
+    ports:
+      - ${clash_api_PORT}:9099
+    privileged: true
+    environment:
+      - TZ=${TZ}
+    volumes:
+      - /etc/localtime:/etc/localtime
+      # 这里使用你自己的clash配置文件
+      - ${CONFIGS}/clash/config.yaml:/root/.config/clash/config.yaml
+    healthcheck:
+      test: [ "CMD", "nc", "-zv", "localhost", "7890" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  aria2:
+    image: superng6/aria2:a2b-latest
+    container_name: aria2
+    network_mode: host
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+      - SECRET=${aria2_SECRET}
+      - CACHE=512M
+      - PORT=${aria2_RPC_PORT}
+      - WEBUI=true
+      - WEBUI_PORT=${ariang_PORT}
+      - BTPORT=${aria2_LISTEN_PORT}
+      - UT=true
+      - QUIET=true
+      - SMD=true
+      - A2B=true
+    volumes:
+      - /etc/localtime:/etc/localtime
+      # aria2 配置文件去项目的config目录下找
+      - ${CONFIGS}/aria2:/config
+      - ${DOWNLOADS}:/downloads
+      - /lib/modules:/lib/modules
+
+  # 这是一个导航页面，可以自己添加一些常用的网站。无需要可以不用
+  # heimdall:
+  #   image: ${heimdall_IMAGETAG}
+  #   container_name: heimdall
+  #   restart: always
+  #   ports:
+  #     - ${heimdall_PORT}:80
+  #   environment:
+  #     - PUID=${USUAL_PUID}
+  #     - PGID=${USUAL_PGID}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime
+  #     - ${VOLUME}/heimdall/config:/config
+  #   healthcheck:
+  #     test: [ "CMD", "nc", "-zv", "localhost", "80" ]
+  #     interval: 5s
+  #     timeout: 30s
+
+  syncthing:
+    image: ${syncthing_IMAGETAG}
+    container_name: syncthing
+    restart: always
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${WEBDAV}/smb/sync:/var/syncthing
+    ports:
+      - ${syncthing_UI_PORT}:8384 # Web UI
+      - 22000:22000/tcp # TCP file transfers
+      - 22000:22000/udp # QUIC file transfers
+      - 21027:21027/udp # Receive local discovery broadcasts

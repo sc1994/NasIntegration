@@ -1,0 +1,159 @@
+version: "3.4"
+
+services:
+
+  # 磁力API
+  jackett:
+    image: ${jackett_IMAGETAG}
+    container_name: jackett
+    restart: always
+    ports:
+      - ${jackett_PORT}:9117
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTP_PROXY}
+      - SOCKS_PROXY=${SOCKS_PROXY}
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${VOLUME}/jackett/config:/config/Jackett
+    healthcheck:
+      test: [ "CMD", "curl", "-i", "localhost:9117" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  # 电视剧数据库
+  sonarr:
+    image: ${sonarr_IMAGETAG}
+    container_name: sonarr
+    restart: always
+    ports:
+      - ${sonarr_PORT}:8989
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTP_PROXY}
+      - SOCKS_PROXY=${SOCKS_PROXY}
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${VOLUME}/sonarr/config:/config
+      - ${MEDIA_TV}:/data/tv
+      - ${MEDIA_ANIME}:/data/anime
+      - ${DOWNLOADS}:/downloads
+    healthcheck:
+      test: [ "CMD", "curl", "-i", "127.0.0.1:8989" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  # 电影数据库
+  radarr:
+    image: ${radarr_IMAGETAG}
+    container_name: radarr
+    restart: always
+    ports:
+      - ${radarr_PORT}:80
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ}
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${VOLUME}/radarr/config:/config
+      - ${MEDIA_MOVIES}:/movies
+      - ${DOWNLOADS}:/downloads
+      - ${MEDIA_OTHER}:/other
+    healthcheck:
+      test: [ "CMD", "curl", "-i", "127.0.0.1:80" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  # 一个自动下载字幕的工具（但不常用）
+  bazarr:
+    image: ${bazarr_IMAGETAG}
+    container_name: bazarr
+    restart: always
+    ports:
+      - ${bazarr_PORT}:6767
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTP_PROXY}
+      - SOCKS_PROXY=${SOCKS_PROXY}
+    volumes:
+      - ${VOLUME}/bazarr/config:/config
+      - ${MEDIA_TV}:/data/tv
+      - ${MEDIA_ANIME}:/data/anime
+      - ${DOWNLOADS}:/downloads
+    healthcheck:
+      test: [ "CMD", "curl", "-i", "127.0.0.1:6767" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  # 多端视频流媒体服务，此版本为破解版
+  emby:
+    image: ${emby_IMAGETAG}
+    container_name: emby
+    restart: always
+    ports:
+      - ${emby_PORT}:8096
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PUID}
+      - TZ=${TZ}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTP_PROXY}
+      - SOCKS_PROXY=${SOCKS_PROXY}
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${VOLUME}/emby:/config
+      - ${MEDIA_TV}:/data/tv
+      - ${MEDIA_ANIME}:/data/anime
+      - ${MEDIA_MOVIES}:/data/movies
+      - /dev/dri:/dev/dri
+    devices:
+      - /dev/dri:/dev/dri
+    healthcheck:
+      test: [ "CMD", "nc", "-zv", "localhost", "8096" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
+  # 常用的字幕下载工具
+  chinesesubfinder:
+    image: ${chinesesubfinder_IMAGETAG}
+    container_name: chinesesubfinder
+    restart: always
+    ports:
+      - ${chinesesubfinder_PORT}:19035
+      - ${LOCALHOST}:${chinesesubfinder_DATA_PORT}:19037 # webui 的视频列表读取图片用，务必设置不要暴露到外网
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+      - UMASK=022
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTP_PROXY}
+      - SOCKS_PROXY=${SOCKS_PROXY}
+      - PERMS=true
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - ${VOLUME}/chinesesubfinder/config:/config
+      - ${VOLUME}/chinesesubfinder/browser:/root/.cache/rod/browser # 容器重启后无需再次下载 chrome，除非 go-rod 更新
+      - ${MEDIA_TV}:/media/tv
+      - ${MEDIA_ANIME}:/media/anime
+      - ${MEDIA_MOVIES}:/media/movies
+    healthcheck:
+      test: [ "CMD", "nc", "-zv", "localhost", "19035" ]
+      interval: 60s
+      timeout: 30s
+      retries: 3

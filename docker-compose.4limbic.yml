@@ -1,0 +1,56 @@
+﻿version: "3.4"
+
+volumes:
+  grafana_prometheus_data:
+  netdataconfig:
+  netdatalib:
+  netdatacache:
+
+services:
+
+  # 监控服务器硬件的工具，这是他的认证代理（原程序没有提身份认证服务）
+  netdata_proxy:
+    image: ${nginx_auth_IMAGETAG}
+    container_name: netdata_proxy
+    restart: always
+    ports:
+      - ${netdata_PORT}:80
+    environment:
+      - TZ=${TZ}
+      - HTPASSWD=${HTPASSWD}
+      - FORWARD_PORT=19999
+      - FORWARD_HOST=netdata
+
+  # 监控服务器硬件的工具，这是监控程序
+  netdata:
+    container_name: netdata
+    image: ${netdata_IMAGETAG}
+    restart: always
+    cap_add: [ SYS_PTRACE, SYS_ADMIN ]
+    security_opt:
+      - apparmor:unconfined
+    devices:
+      - /dev/dri:/dev/dri:rwm
+    environment:
+      - PUID=${USUAL_PUID}
+      - PGID=${USUAL_PGID}
+      - TZ=${TZ}
+      - NETDATA_CLAIM_TOKEN=YEq5vTaJnGxHBnyi54AQmmjXgWsoehaWAsnK-ytdms9XNWE2-XUhVXpIFQv7W7yFsw1O2vFT0JfXDWehluqMJhNzZEZvMLURgpCHlg2VO1P0ChDHtTIXkCYrBNZivapQ3tjNcJ8
+      - NETDATA_CLAIM_URL=https://app.netdata.cloud
+      - NETDATA_CLAIM_ROOMS=
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: [ "CMD", "nc", "-zv", "localhost", "19999" ]
+      interval: 5s
+      timeout: 30s
+      retries: 3
+
